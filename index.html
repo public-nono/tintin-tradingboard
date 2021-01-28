@@ -2,10 +2,19 @@
 <html>
 <head>
   <meta charset="UTF-8">
+
+  <!-- https://favicon.io/favicon-generator/ -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+
   <title>Tintin traidingboard</title>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
-    .grid { 
+    .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       grid-gap: 20px;
@@ -29,21 +38,60 @@
       width: 100%;
     }
   </style>
+
   <script type="module">
-    import { html, render } from 'https://unpkg.com/htm/preact/standalone.module.js'
+    import { html, useEffect, useState, render } from 'https://unpkg.com/htm/preact/standalone.module.js'
 
-    const Article = () => (html`
-      <article>
-        <img src="https://www.quackit.com/pix/samples/23m.jpg" alt="Sample photo" />
-        <div class="text">
-          <h3>Seamlessly visualize quality</h3>
-          <p>Collaboratively administrate empowered markets via plug-and-play networks.</p>
-          <button>Here's why</button>
-        </div>
-      </article>
-    `)
+    const Article = ({ stockId }) => {
+      const [info, setInfo] = useState()
 
-    render(html`<div class="grid"><${Article} /><${Article} /><${Article} /><${Article} /><${Article} /><${Article} /></div>`, document.body)
+      useEffect(async () => {
+        const info = await window.getInfo(stockId)
+        setInfo(info)
+      }, [])
+
+      return html`
+        <article>
+          <img src="https://www.quackit.com/pix/samples/23m.jpg" alt="Sample photo" />
+          <div class="text">
+            <h3>${info && info.name}</h3>
+            <p>Collaboratively administrate empowered markets via plug-and-play networks.</p>
+            <button>Here's why</button>
+          </div>
+        </article>
+      `
+    }
+
+    const App = () => {
+
+    }
+
+    const stockIds = ['FR0013326246-XAMS']
+
+    render(html`<div class="grid">${stockIds.map(stockId => html`<${Article} stockId="${stockId}" />`)}</div>`, document.body)
+  </script>
+
+  <script>
+    // services
+    async function fetchInfo(stockId) {
+      const res = await fetch(`https://live.euronext.com/en/ajax/getDetailedQuote/${stockId}`, {
+        method: 'POST',
+        body: 'theme_name=euronext_live',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        },
+      })
+      if (res.ok) {
+        debugger
+       const body = await res.text()
+       console.info(body)
+       const [, name] = /<strong>(.*?)<\/strong>/g.exec(body)
+        debugger
+       return { name }
+      }
+    }
+
+    window.getInfo = (stockId) => fetchInfo(stockId)
   </script>
 </head>
 <body>
