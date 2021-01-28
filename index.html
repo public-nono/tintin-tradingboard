@@ -14,6 +14,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
+    body {
+      font-family: sans-serif;
+      font-size: 14px;
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -23,19 +27,22 @@
     .grid > article {
       border: 1px solid #ccc;
       box-shadow: 2px 2px 6px 0px  rgba(0,0,0,0.3);
+      padding: 20px
     }
-    .grid > article img {
+    img {
       max-width: 100%;
+      max-height: 100%;
+      height: 45px;
     }
-    .text {
-      padding: 0 20px 20px;
+    h4 {
+      min-height: 2em;
     }
-    .text > button {
-      background: gray;
-      border: 0;
-      color: white;
-      padding: 10px;
-      width: 100%;
+    a {
+      padding-right: 5px;
+    }
+    .logo {
+      height: 60px;
+      text-align:center;
     }
   </style>
 
@@ -46,17 +53,28 @@
       const [info, setInfo] = useState()
 
       useEffect(async () => {
-        const info = await window.getInfo(stockId)
-        setInfo(info)
+        async function fetchInfo () {
+          const info = await window.getInfo(stockId)
+          setInfo(info)
+        }
+
+        fetchInfo()
+        setInterval(fetchInfo, 20000)
       }, [])
 
       return html`
         <article>
-          <img src="https://www.quackit.com/pix/samples/23m.jpg" alt="Sample photo" />
+          <div class="logo">
+            <img src="https://live.euronext.com/sites/default/files/company_logo/${stockId.substr(0, 12)}.jpg" alt="logo ${info && info.name}" />
+          </div>
           <div class="text">
-            <h3>${info && info.name}</h3>
-            <p>Collaboratively administrate empowered markets via plug-and-play networks.</p>
-            <button>Here's why</button>
+            <h4>${info ? info.name : '...'}</h4>
+            <p>${info && info.price} ${info && info.currency} ${info && info.marketStatus}</p>
+            <p>${info && info.datetime}</p>
+            <a target="_blank" href="https://live.euronext.com/en/product/equities/${stockId}">Euronext</a>
+
+            <a target="_blank" href="https://www.boursorama.com/recherche/${stockId.substr(0, 12)}?searchId=">Boursorama</a>
+
           </div>
         </article>
       `
@@ -66,7 +84,7 @@
 
     }
 
-    const stockIds = ['FR0013326246-XAMS']
+    const stockIds = ['FR0013326246-XAMS', 'FR0013379484-XPAR', 'FR0000121725-XPAR', 'FR0000077919-XPAR']
 
     render(html`<div class="grid">${stockIds.map(stockId => html`<${Article} stockId="${stockId}" />`)}</div>`, document.body)
   </script>
@@ -74,6 +92,9 @@
   <script>
     // services
     async function fetchInfo(stockId) {
+
+      console.info(`fetch ${stockId}`)
+
       const res = await fetch(`https://live.euronext.com/en/ajax/getDetailedQuote/${stockId}`, {
         method: 'POST',
         body: 'theme_name=euronext_live',
@@ -82,12 +103,28 @@
         },
       })
       if (res.ok) {
-        debugger
-       const body = await res.text()
-       console.info(body)
-       const [, name] = /<strong>(.*?)<\/strong>/g.exec(body)
-        debugger
-       return { name }
+       const body = (await res.text()).replace(/(?:\r\n|\r|\n)/g, '')
+
+       let [, name] = /<strong>(.*?)<\/strong>/g.exec(body)
+       let [, marketStatus] = /<div class="uppercase font-weight-bold text-uppercase">(.*?)<\/div>/g.exec(body)
+       let [, price] = /<span class="data-60" id="header-instrument-price">(.*?)<\/span>/g.exec(body)
+       let [, currency] = /<span class="data-50  " id="header-instrument-currency">(.*?)<\/span>/g.exec(body)
+       let [datetime] = /[0-3][0-9]\/[0-1][0-9]\/20[2-9][0-9] - [0-2][0-9]:[0-5][0-9](.\s*?)&nbsp;CET/g.exec(body)
+
+       name = name.trim()
+       marketStatus = marketStatus.trim()
+       currency = currency.trim()
+       datetime = datetime.replace('&nbsp;', '').replace(/\s\s+/g, ' ')
+
+       console.info(`${stockId}: ${name} ${price}${currency} ${marketStatus} ${datetime}`)
+
+       return {
+         name,
+         marketStatus,
+         price,
+         currency,
+         datetime,
+        }
       }
     }
 
