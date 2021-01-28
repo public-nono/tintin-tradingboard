@@ -34,15 +34,29 @@
       max-height: 100%;
       height: 45px;
     }
-    h4 {
+    .title {
       min-height: 2em;
+      text-align: center;
+      color: #ccc;
+      text-transform: capitalize;
+    }
+    .price {
+      font-size: 18px;
+      font-weight: bold;
     }
     a {
       padding-right: 5px;
     }
+    .loading a {
+      display: none;
+    }
     .logo {
-      height: 60px;
       text-align:center;
+    }
+    .text p {
+      text-align: center;
+      margin-top: 17px;
+      margin-bottom: 17px;
     }
   </style>
 
@@ -63,17 +77,19 @@
       }, [])
 
       return html`
-        <article>
+        <article class="${info ? '': 'loading'}">
           <div class="logo">
             <img src="https://live.euronext.com/sites/default/files/company_logo/${stockId.substr(0, 12)}.jpg" alt="logo ${info && info.name}" />
+            <p class="title">${info ? info.name : '...'}</p>
           </div>
           <div class="text">
-            <h4>${info ? info.name : '...'}</h4>
-            <p>${info && info.price} ${info && info.currency} ${info && info.marketStatus}</p>
+            <p><span class="price">${info && info.price} ${info && info.currency}</span> ${info && info.marketStatus}</p>
             <p>${info && info.datetime}</p>
-            <a target="_blank" href="https://live.euronext.com/en/product/equities/${stockId}">Euronext</a>
 
-            <a target="_blank" href="https://www.boursorama.com/recherche/${stockId.substr(0, 12)}?searchId=">Boursorama</a>
+            <p>
+              <a target="_blank" href="https://live.euronext.com/en/product/equities/${stockId}">Euronext</a>
+              <a target="_blank" href="https://www.boursorama.com/recherche/${stockId.substr(0, 12)}?searchId=">Boursorama</a>
+            </p>
 
           </div>
         </article>
