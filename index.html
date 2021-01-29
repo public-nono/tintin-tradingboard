@@ -77,16 +77,40 @@
 
     const Article = ({ stockId }) => {
       const [info, setInfo] = useState()
+      const [tabVisibility, setTabVisibility] = useState(document.visibilityState)
+      const [intervalId, setIntervalId] = useState()
+
+      useEffect(() => {
+        function handleVisibilityChange () {
+          setTabVisibility(document.visibilityState)
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+      }, [])
 
       useEffect(async () => {
+        if (tabVisibility === 'visible') {
+          const ms = 5000
+
+          console.info(`${stockId}: START FETCHING INFO EVERY ${ms}ms`)
+
+          fetchInfo()
+
+          const intervalId = setInterval(fetchInfo, ms)
+          setIntervalId(intervalId)
+        } else {
+          console.info(`${stockId}: STOP FETCHING INFO`)
+
+          setInfo(undefined)
+          clearInterval(intervalId)
+        }
+
         async function fetchInfo () {
           const info = await window.getInfo(stockId)
           setInfo(info)
         }
-
-        fetchInfo()
-        setInterval(fetchInfo, 5000)
-      }, [])
+      }, [tabVisibility])
 
       return html`
         <article class="${info ? '': 'loading'}">
@@ -129,9 +153,6 @@
   <script>
     // services
     async function fetchInfo(stockId) {
-
-      console.info(`fetch ${stockId}`)
-
       const res = await fetch(`https://live.euronext.com/en/ajax/getDetailedQuote/${stockId}`, {
         method: 'POST',
         body: 'theme_name=euronext_live',
