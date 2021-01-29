@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
 
   <!-- https://favicon.io/favicon-generator/ -->
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-  <link rel="manifest" href="/site.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest">
 
   <title>Tintin traidingboard</title>
 
@@ -74,8 +74,9 @@
 
   <script type="module">
     import { html, useEffect, useState, render } from 'https://unpkg.com/htm/preact/standalone.module.js'
+    import dayjs from 'https://unpkg.com/dayjs/esm/index.js'
 
-    const Article = ({ stockId }) => {
+    const Article = ({ stockId, symbol }) => {
       const [info, setInfo] = useState()
       const [tabVisibility, setTabVisibility] = useState(document.visibilityState)
       const [intervalId, setIntervalId] = useState()
@@ -91,27 +92,45 @@
 
       useEffect(async () => {
         if (tabVisibility === 'visible') {
-          const ms = 5000
+          let ms
+          if (stockId){
+            ms = 10000
+          } else if (symbol) {
+            ms = 30000
+          }
 
-          console.info(`${stockId}: START FETCHING INFO EVERY ${ms}ms`)
+          console.info(`${stockId || symbol}: START FETCHING INFO EVERY ${ms/1000}s`)
 
           fetchInfo()
 
           const intervalId = setInterval(fetchInfo, ms)
           setIntervalId(intervalId)
         } else {
-          console.info(`${stockId}: STOP FETCHING INFO`)
+          console.info(`${stockId || symbol}: STOP FETCHING INFO`)
 
           setInfo(undefined)
           clearInterval(intervalId)
         }
 
         async function fetchInfo () {
-          const info = await window.getInfo(stockId)
+          let info
+          if (stockId){
+            info = await window.getInfo(stockId)
+          } else if (symbol) {
+            info = await window.getCryptoQuote(symbol, (time) => dayjs.unix(time).format('DD/MM/YYYY - HH:mm'))
+          }
           setInfo(info)
         }
       }, [tabVisibility])
 
+      if (stockId) {
+        return html`<${ArticleStock} info="${info}" stockId="${stockId}" />`
+      } else if (symbol) {
+        return html`<${ArticleCrypto} info="${info}" symbol="${symbol}" />`
+      }
+    }
+
+    const ArticleStock = ({ info, stockId }) => {
       return html`
         <article class="${info ? '': 'loading'}">
           <div class="logo">
@@ -132,6 +151,25 @@
       `
     }
 
+    const ArticleCrypto = ({ info, symbol }) => {
+      return html`
+        <article class="${info ? '': 'loading'}">
+          <div class="logo">
+            <p class="title">${info ? symbol : '...'}</p>
+          </div>
+          <div class="text">
+            <p><span class="price">${info && info.price} ${info && info.currency}</span> ${info && `(${info.source})`}</p>
+            <p>${info && info.datetime}</p>
+
+            <p>
+              <a target="_blank" href="https://www.binance.com/fr/buy-sell-crypto?fiat=USD&crypto=${symbol}">Binance</a>
+            </p>
+
+          </div>
+        </article>
+      `
+    }
+
     const Nono = () => {
       return html`
         <article class="nono">
@@ -141,13 +179,18 @@
       `
     }
 
-    const App = () => {
-
-    }
+    const App = () => (html`
+      <div class="grid">
+        ${stockIds.map(stockId => html`<${Article} stockId="${stockId}" />`)}
+        <${Article} symbol="DOGE" />
+        <${Article} symbol="BTC" />
+        <${Nono} />
+      </div>
+    `)
 
     const stockIds = ['FR0013326246-XAMS', 'FR0013379484-XPAR', 'FR0000121725-XPAR', 'FR0000077919-XPAR']
 
-    render(html`<div class="grid">${stockIds.map(stockId => html`<${Article} stockId="${stockId}" />`)}<${Nono} /></div>`, document.body)
+    render(html`<${App} />`, document.body)
   </script>
 
   <script>
@@ -186,7 +229,31 @@
       }
     }
 
-    window.getInfo = (stockId) => fetchInfo(stockId)
+    window.getInfo = fetchInfo
+  </script>
+  <script>
+    async function getCryptoQuote (symbol, dateFormat) {
+      const res = await fetch(`https://sochain.com/api/v2/get_price/${symbol}/USD`)
+      if (res.ok) {
+        const body = await res.json()
+        const data = body.data.prices[0]
+        const source = data.exchange
+        const price = data.price
+        const currency = data.price_base
+        const datetime = dateFormat(data.time)
+
+        console.info(`${symbol}: ${price}${currency} ${datetime} (${source})`)
+
+        return {
+          price,
+          currency,
+          datetime,
+          source,
+        }
+      }
+    }
+
+    window.getCryptoQuote = getCryptoQuote
   </script>
 </head>
 <body>
