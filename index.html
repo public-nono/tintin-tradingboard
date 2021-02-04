@@ -107,12 +107,7 @@
 
       useEffect(async () => {
         if (tabVisibility === 'visible') {
-          let ms
-          if (stockId){
-            ms = 10000
-          } else if (symbol) {
-            ms = 30000
-          }
+          const ms = 20000
 
           console.info(`${stockId || symbol}: START FETCHING INFO EVERY ${ms/1000}s`)
 
