@@ -14,13 +14,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
+    @font-face {
+      font-family: 'Montserrat';
+      src: url('Montserrat-Regular.ttf')  format('truetype');
+    }
     @media (prefers-color-scheme: dark) {
       body {
         background: #000;
       }
     }
     body {
-      font-family: sans-serif;
+      font-family: 'Montserrat', sans-serif;
       font-size: 14px;
     }
     .grid {
@@ -33,6 +37,18 @@
       border: 1px solid #ccc;
       box-shadow: 2px 2px 6px 0px  rgba(0,0,0,0.3);
       padding: 20px;
+      position: relative;
+    }
+    .grid > article > .rm {
+      display: none;
+      position: absolute;
+      top: 0;
+      right: 0;
+      color: #666;
+      cursor: pointer;
+    }
+    .grid > article:hover > .rm {
+      display: block;
     }
     @media (prefers-color-scheme: dark) {
       .grid > article {
@@ -79,6 +95,7 @@
     .nono img {
       height: 250px;
       margin: auto;
+      cursor: pointer;
     }
     .nono_title {
       text-align: center;
@@ -91,7 +108,7 @@
     import { html, useEffect, useState, render } from 'https://unpkg.com/htm/preact/standalone.module.js'
     import dayjs from 'https://unpkg.com/dayjs/esm/index.js'
 
-    const Article = ({ stockId, symbol }) => {
+    const Article = ({ stockId, symbol, rmStockId }) => {
       const [info, setInfo] = useState()
       const [tabVisibility, setTabVisibility] = useState(document.visibilityState)
       const [intervalId, setIntervalId] = useState()
@@ -124,25 +141,28 @@
 
         async function fetchInfo () {
           let info
+
           if (stockId){
             info = await window.getInfo(stockId)
           } else if (symbol) {
             info = await window.getCryptoQuote(symbol, (time) => dayjs.unix(time).format('DD/MM/YYYY - HH:mm'))
           }
+
           setInfo(info)
         }
       }, [tabVisibility])
 
       if (stockId) {
-        return html`<${ArticleStock} info="${info}" stockId="${stockId}" />`
+        return html`<${ArticleStock} info="${info}" stockId="${stockId}" rmStockId=${rmStockId} />`
       } else if (symbol) {
         return html`<${ArticleCrypto} info="${info}" symbol="${symbol}" />`
       }
     }
 
-    const ArticleStock = ({ info, stockId }) => {
+    const ArticleStock = ({ info, stockId, rmStockId }) => {
       return html`
         <article class="${info ? '': 'loading'}">
+          <div class="rm" onClick=${() => confirm(`Remove ${info && info.name || stockId} ?`) && rmStockId(stockId)}>❌</div>
           <div class="logo">
             <img src="https://live.euronext.com/sites/default/files/company_logo/${stockId.substr(0, 12)}.jpg" alt="logo ${info && info.name}" />
             <p class="title">${info ? info.name : '...'}</p>
@@ -181,25 +201,56 @@
       `
     }
 
-    const Nono = () => {
+    const Nono = ({ addStockId }) => {
       return html`
         <article class="nono">
           <div class="nono_title">Tintin & Nono daily traders</div>
-          <img src="nono-250.jpg" />
+          <img src="nono-250.jpg" onClick=${() => addStockId()} />
         </article>
       `
     }
 
-    const App = () => (html`
-      <div class="grid">
-        ${stockIds.map(stockId => html`<${Article} stockId="${stockId}" />`)}
-        <${Article} symbol="DOGE" />
-        <${Article} symbol="BTC" />
-        <${Nono} />
-      </div>
-    `)
+    const App = () => {
+      const stockIdsFromLocalStorage = localStorage.getItem('stockIds')
+      const [stockIds, setStockIds] = useState(stockIdsFromLocalStorage ? JSON.parse(stockIdsFromLocalStorage) : [])
 
-    const stockIds = ['FR0013326246-XAMS', 'FR0013379484-XPAR', 'FR0000121725-XPAR', 'FR0000077919-XPAR']
+      const addStockId = async (defaultValue = '') => {
+        const input = prompt('Please give me a stock code from live.euronext.com (FR0013326246-XAMS for instance)', defaultValue)
+        if (input) {
+          const stockId = input.trim().toUpperCase()
+
+          if (stockIds.includes(stockId)) {
+            alert(`Error: "${stockId}" is already in your list`)
+            return addStockId(stockId)
+          }
+
+          try {
+            await window.getInfo(stockId)
+            const newStockIds = stockIds.concat(stockId)
+            setStockIds(newStockIds)
+            localStorage.setItem('stockIds', JSON.stringify(newStockIds))
+          } catch (e) {
+            alert(`Error: impossible to add "${stockId}"`)
+            return addStockId(stockId)
+          }
+        }
+      }
+
+      const rmStockId = (stockId) => {
+        const newStockIds = stockIds.filter(id => id !== stockId)
+        setStockIds(newStockIds)
+        localStorage.setItem('stockIds', JSON.stringify(newStockIds))
+      }
+
+      return html`
+        <div class="grid">
+          ${stockIds.map(stockId => html`<${Article} stockId="${stockId}" rmStockId=${rmStockId} key="${stockId}" />`)}
+          <${Article} symbol="DOGE" />
+          <${Article} symbol="BTC" />
+          <${Nono} addStockId=${addStockId} />
+        </div>
+      `
+    }
 
     render(html`<${App} />`, document.body)
   </script>
