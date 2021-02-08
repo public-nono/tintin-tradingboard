@@ -104,6 +104,8 @@
     }
   </style>
 
+  <script src="https://cdn.auth0.com/js/auth0-spa-js/1.13/auth0-spa-js.production.js"></script>
+  <script src="https://cdn.auth0.com/js/lock/11.28/lock.min.js"></script>
   <script type="module">
     import { html, useEffect, useState, render } from 'https://unpkg.com/htm/preact/standalone.module.js'
     import dayjs from 'https://unpkg.com/dayjs/esm/index.js'
@@ -206,8 +208,97 @@
         <article class="nono">
           <div class="nono_title">Tintin & Nono daily traders</div>
           <img src="nono-250.jpg" onClick=${() => addStockId()} />
+          <br/>
+          <a onClick=${login}>test login</a>
+          <center>v1.1.9</center>
         </article>
       `
+    }
+
+    async function login () {
+      const { pathname, origin } = window.location
+      const redirect_uri = `${origin}${pathname}`
+
+      const authDomain = 'tintin-tradingboard.eu.auth0.com'
+      const authClientId = 'GYSiaUT8wt6HPufV4jKfIkOC64mKCxtk'
+
+      const options = {
+        auth: {
+          // params: {
+          //   param1: "value1",
+          //   scope: "openid profile email"
+          // },
+          // autoParseHash: true,
+          redirect: true,
+          redirectUrl: redirect_uri,
+          // responseMode: "form_post",
+          responseType: "token",
+          // sso: true,
+          // connectionScopes: {
+          //   connectionName: [ 'scope1', 'scope2' ]
+          // }
+        }
+      }
+
+      const lock = new Auth0Lock(authClientId, authDomain, options);
+
+      lock.on("authenticated", function(authResult) {
+        lock.getUserInfo(authResult.accessToken, function(error, profileResult) {
+          if (error) {
+            console.info('error lock auth', error)
+            return
+          }
+          console.warn(profileResult)
+        })
+      })
+
+      lock.on('authorization_error', (error) => {
+        console.info('authorization_error', error)
+      })
+
+      let auth0
+      try {
+        auth0 = await createAuth0Client({
+          domain: authDomain,
+          client_id: authClientId,
+          redirect_uri,
+        })
+      } catch (e) {
+        console.warn(`Cannot login: ${e}`)
+      }
+
+      const isAuthenticated = await auth0.isAuthenticated()
+      console.warn(`isAuthenticated ${isAuthenticated}`)
+
+      if (isAuthenticated) {
+        const user = await auth0.getUser();
+        console.info(`user because isAuthenticated=true`, user);
+        // const extraUserInfo = window.fetch()
+      } else {
+        const query = window.location.search
+        const shouldParseResult = query.includes("code=") && query.includes("state=")
+
+        if (shouldParseResult) {
+          try {
+            await auth0.handleRedirectCallback()
+            console.info('login successful')
+            window.history.replaceState({}, document.title, window.location.pathname)
+            const user = await auth0.getUser();
+            console.info(`user after handleRedirectCallback`, user);
+          } catch (e) {
+            console.warn(`Cannot parse result of login: ${e}`)
+          }
+        } else {
+          try {
+            const o = await auth0.loginWithRedirect({
+              redirect_uri,
+            })
+            console.log('loginWithRedirect result', o)
+          } catch (err) {
+            console.log("Log in failed", err);
+          }
+        }
+      }
     }
 
     const App = () => {
@@ -245,9 +336,9 @@
       return html`
         <div class="grid">
           ${stockIds.map(stockId => html`<${Article} stockId="${stockId}" rmStockId=${rmStockId} key="${stockId}" />`)}
-          <${Article} symbol="DOGE" />
-          <${Article} symbol="BTC" />
-          <${Nono} addStockId=${addStockId} />
+          <${Article} symbol="DOGE" key="DOGE" />
+          <${Article} symbol="BTC" key="BTC" />
+          <${Nono} addStockId=${addStockId} key="NONO" />
         </div>
       `
     }

@@ -1,0 +1,1 @@
+http-server -c-1 --ssl -C ssl/localhost.crt -K ssl/localhost.key
