@@ -322,6 +322,7 @@
             localStorage.setItem('stockIds', JSON.stringify(newStockIds))
           } catch (e) {
             alert(`Error: impossible to add "${stockId}"`)
+            console.error(e)
             return addStockId(stockId)
           }
         }
@@ -361,8 +362,8 @@
 
        let [, name] = /<strong>(.*?)<\/strong>/g.exec(body)
        let [, marketStatus] = /<div class="uppercase font-weight-bold text-uppercase">(.*?)<\/div>/g.exec(body)
-       let [, price] = /<span class="data-60" id="header-instrument-price">(.*?)<\/span>/g.exec(body)
-       let [, currency] = /<span class="data-50  " id="header-instrument-currency">(.*?)<\/span>/g.exec(body)
+       let [,, price] = /<span class="([^"]*)" id="header-instrument-price">(.*?)<\/span>/g.exec(body)
+       let [,, currency] = /<span class="([^"]*)" id="header-instrument-currency">(.*?)<\/span>/g.exec(body)
        let [datetime] = /[0-3][0-9]\/[0-1][0-9]\/20[2-9][0-9] - [0-2][0-9]:[0-5][0-9](.\s*?)&nbsp;CET/g.exec(body)
 
        name = name.trim()
@@ -382,7 +383,13 @@
       }
     }
 
-    window.getInfo = fetchInfo
+    window.getInfo = async (...args) => {
+      try {
+        return fetchInfo(...args)
+      } catch (e) {
+        console.error(`error while fetching`, e)
+      }
+    }
   </script>
   <script>
     async function getCryptoQuote (symbol, dateFormat) {
